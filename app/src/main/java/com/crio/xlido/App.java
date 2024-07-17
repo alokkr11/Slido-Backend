@@ -10,13 +10,39 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import com.crio.xlido.entities.Event;
+import com.crio.xlido.entities.Question;
+import com.crio.xlido.entities.User;
+import com.crio.xlido.repositories.IEventRepository;
+import com.crio.xlido.repositories.IQuestionRepository;
+import com.crio.xlido.repositories.IUserRepository;
+import com.crio.xlido.repositories.Implementation.EventRepository;
+import com.crio.xlido.repositories.Implementation.QuestionRepository;
+import com.crio.xlido.repositories.Implementation.UserRepository;
+import com.crio.xlido.services.IEventService;
+import com.crio.xlido.services.IQuestionService;
+import com.crio.xlido.services.IUserService;
+import com.crio.xlido.services.Implementation.EventService;
+import com.crio.xlido.services.Implementation.QuestionService;
+import com.crio.xlido.services.Implementation.UserService;
 
 public class App {
+
+    private final IUserRepository userRepository = new UserRepository();
+    private final IUserService userService = new UserService(userRepository);
+    private final IEventRepository eventRepository = new EventRepository();
+    private final IEventService eventService = new EventService(eventRepository, userRepository);
+    private final IQuestionRepository questionRepository = new QuestionRepository();
+    private final IQuestionService questionService =
+            new QuestionService(userRepository, eventRepository, questionRepository);
+
     public static void main(String[] args) {
+
 
         // Test your code by ading commands in sample_input/sample_input_one.txt
         // Run run.sh script using "bash run.sh" in your terminal.
-        if (args.length == 1){
+        if (args.length == 1) {
             List<String> commandLineArgs = new LinkedList<>(Arrays.asList(args));
             String inputFile = commandLineArgs.get(0).split("=")[1];
             try {
@@ -27,53 +53,88 @@ public class App {
                 e.printStackTrace();
             }
             return;
-        }        
+        }
 
         // OR
         // Test your code by adding commands in this list
-        List<String> inplace_commands = new LinkedList<>(){
+        List<String> inplace_commands = new LinkedList<>() {
             {
+                add("CREATE_USER,test1@user.com,abcd");
+                add("CREATE_USER,test1@user.com,abcd");
+                add("CREATE_USER,test2@user.com,abcdefgh");
+                add("CREATE_EVENT,Event1,1");
+                add("ADD_QUESTION,Is the mid-hinge resistant to outliers?,1,1");
+                add("UPVOTE_QUESTION,1,1");
+                add("UPVOTE_QUESTION,1,1");
             }
         };
 
         new App().run(inplace_commands);
- 
+
     }
-    public void run(List<String> commands){
+
+    public void run(List<String> commands) {
 
         Iterator<String> it = commands.iterator();
-        while(it.hasNext()){
+        while (it.hasNext()) {
             String line = it.next();
-                if(line == null){
-                    break;
-                }
-                List<String> tokens = Arrays.asList(line.split(","));
+            if (line == null) {
+                break;
+            }
+            List<String> tokens = Arrays.asList(line.split(","));
 
-                try {
-                    //Execute Services
-                    switch(tokens.get(0)){
-                        case "CREATE_USER":
+            try {
+                // Execute Services
+                switch (tokens.get(0)) {
+                    case "CREATE_USER":
+                        User u = userService.create(tokens.get(1), tokens.get(2));
+                        System.out.println("User ID: " + u.getId());
                         break;
-                        case "CREATE_EVENT":
+                    case "CREATE_EVENT":
+                        Event e = eventService.create(tokens.get(1), tokens.get(2));
+                        System.out.println("Event ID: " + e.getId());
                         break;
-                        case "DELETE_EVENT":
+                    case "DELETE_EVENT":
+                        Event e1 = eventService.delete(tokens.get(1), tokens.get(2));
+                        System.out.println("EVENT_DELETED " + e1.getId());
                         break;
-                        case "ADD_QUESTION":
+                    case "ADD_QUESTION":
+                        Question q =
+                                questionService.add(tokens.get(1), tokens.get(2), tokens.get(3));
+                        System.out.println("Question ID: " + q.getId());
                         break;
-                        case "DELETE_QUESTION":
+                    case "DELETE_QUESTION":
+                        Question qDeleted = questionService.delete(tokens.get(1), tokens.get(2));
+                        System.out.println("QUESTION_DELETED " + qDeleted.getId());
                         break;
-                        case "UPVOTE_QUESTION":
+                    case "UPVOTE_QUESTION":
+                        Question qUpvoted = questionService.upvote(tokens.get(1), tokens.get(2));
+                        System.out.println("QUESTION_UPVOTED " + qUpvoted.getId());
                         break;
-                        case "REPLY_QUESTION":
+                    case "REPLY_QUESTION":
+                        questionService.reply(tokens.get(1), tokens.get(2), tokens.get(3));
+                        System.out.println("REPLY_ADDED");
                         break;
-                        case "LIST_QUESTIONS":
+                    case "LIST_QUESTIONS":
+                        List<Question> qList = questionService.getAll(tokens.get(1), tokens.get(2));
+                        for (Question ql : qList) {
+                            System.out.println("Question ID: " + ql.getId());
+                            System.out.println("Content: " + ql.getContent());
+                            System.out.println("Votes: " + ql.getUpvotes());
+                            System.out.println("Replies:");
+                            for (Map.Entry<String, String> m : ql.getReplies().entrySet()) {
+                                System.out.println("  - User " + m.getKey() + ": " + m.getValue());
+                            }
+                            System.out.println();
+                        }
+
                         break;
-                        default:
-                            throw new RuntimeException("INVALID_COMMAND");
+                    default:
+                        throw new RuntimeException("INVALID_COMMAND");
                 }
-                } catch (Exception e) {
-                    System.out.println("ERROR: " + e.getMessage());
-                }
+            } catch (Exception e) {
+                System.out.println("ERROR: " + e.getMessage());
+            }
         }
     }
 }
